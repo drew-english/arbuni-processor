@@ -1,0 +1,41 @@
+query PoolsForToken(
+  $tokenAddress: ID!,
+  $nPools: Int!,
+  $minTvl: BigDecimal!
+) {
+  token0Pools: pools(where: {
+    token0: $tokenAddress,
+    totalValueLockedToken0_gt: $minTvl,
+    liquidity_gt: 0
+  }, first: $nPools) {
+    ...poolFields
+  },
+  token1Pools: pools(where: {
+    token1: $tokenAddress,
+    totalValueLockedToken1_gt: $minTvl,
+    liquidity_gt: 0
+  }, first: $nPools) {
+    ...poolFields
+  }
+}
+
+fragment poolFields on Pool {
+	id
+  token0 {
+    ...tokenFields
+  }
+  token1 {
+    ...tokenFields
+  }
+  token0Price
+  token1Price
+	totalValueLockedToken0
+  totalValueLockedToken1
+  liquidity
+  feeTier
+}
+
+fragment tokenFields on Token {
+	symbol
+	id
+}
