@@ -1,11 +1,11 @@
 use std::collections::HashSet;
-use std::env;
 use std::{cmp::min, sync::Arc};
 
 use graphql_client::{GraphQLQuery, Response};
 use tokio::{sync::RwLock, task::JoinHandle};
 use tracing::{error, info};
 
+use crate::db::db_connection;
 use crate::models::Token;
 use crate::models::{
     pool_query::{pools_for_token, PoolsForToken},
@@ -15,20 +15,13 @@ use crate::models::{
 const UNISWAP_URL: &str = "https://api.thegraph.com/subgraphs/name/uniswap/uniswap-v3";
 const N_WORKERS: usize = 10;
 
-async fn db_connection() -> sqlx::Pool<sqlx::Postgres> {
-    sqlx::postgres::PgPoolOptions::new()
-        .max_connections(5)
-        .connect(env::var("DATABASE_URL").unwrap().as_str())
-        .await
-        .unwrap()
-}
-
 pub async fn find_and_update_all_pools(root_token_address: String) {
     let processed_pools: Arc<RwLock<HashSet<String>>> = Arc::new(RwLock::new(HashSet::new()));
     let processed_tokens: Arc<RwLock<HashSet<String>>> = Arc::new(RwLock::new(HashSet::new()));
     let tokens_to_explore: Arc<RwLock<Vec<String>>> =
         Arc::new(RwLock::new(vec![root_token_address]));
     let db_pool = db_connection().await;
+    clear_pool_data(&db_pool).await;
 
     while tokens_to_explore.read().await.len() > 0 {
         let token_addrs: Vec<String> = {
@@ -52,7 +45,7 @@ pub async fn find_and_update_all_pools(root_token_address: String) {
                     }
 
                     save_pool_data(&db_pool_clone, &pool).await;
-                    processed_pools.write().await.insert(pool.id);
+                    processed_pools.write().await.insert(pool.id.clone());
 
                     let mut next_token = &pool.token0.id;
                     if next_token == &addr {
@@ -64,7 +57,7 @@ pub async fn find_and_update_all_pools(root_token_address: String) {
                     }
 
                     processed_tokens.write().await.insert(addr.clone());
-                    info!(pool_address = addr, "[Explorer] Successfully processed");
+                    info!(pool_address = pool.id, "[Explorer] Successfully processed");
                 }
             }));
         }
@@ -154,4 +147,10 @@ async fn save_pool_data(
     }
 
     pool.save(db_pool).await.expect("Failed to save pool");
+}
+
+
+async fn clear_pool_data(db_pool: &sqlx::Pool<sqlx::Postgres>) {
+    sqlx::query!("DELETE FROM pools").execute(db_pool).await.expect("Failed to clear pools");
+    sqlx::query!("DELETE FROM tokens").execute(db_pool).await.expect("Failed to clear tokens");
 }

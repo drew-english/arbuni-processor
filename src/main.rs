@@ -1,5 +1,9 @@
+mod cycler;
+mod db;
 mod explorer;
 mod models;
+
+use std::env;
 
 use tracing::Level;
 use tracing_subscriber::FmtSubscriber;
@@ -18,5 +22,13 @@ async fn main() {
     init_logger();
     dotenv::dotenv().unwrap();
 
-    explorer::find_and_update_all_pools(USDC_ADDRESS.to_string()).await;
+    if env::var("REFRESH_DATA").unwrap() == "true" {
+        explorer::find_and_update_all_pools(USDC_ADDRESS.to_string()).await;
+    }
+
+    cycler::process_cycles(models::Token {
+        id: USDC_ADDRESS.to_string(),
+        symbol: "USDC".to_string(),
+    })
+    .await;
 }

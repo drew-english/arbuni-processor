@@ -1,19 +1,20 @@
 use async_trait::async_trait;
+use bigdecimal::BigDecimal;
 use sqlx::{query, FromRow, Postgres};
 
 use super::{pool_query::pools_for_token::poolFields as GqlPoolFields, Model, Token};
 
-#[derive(FromRow)]
+#[derive(Clone, FromRow, Eq, PartialOrd, Ord)]
 pub struct Pool {
-    id: String,
-    token0_id: String,
-    token1_id: String,
-    token0_price: String,
-    token1_price: String,
-    total_value_locked_token0: String,
-    total_value_locked_token1: String,
-    liquidity: String,
-    fee_tier: String,
+    pub id: String,
+    pub token0_id: String,
+    pub token1_id: String,
+    pub token0_price: String,
+    pub token1_price: String,
+    pub total_value_locked_token0: String,
+    pub total_value_locked_token1: String,
+    pub liquidity: String,
+    pub fee_tier: String,
 }
 
 #[async_trait]
@@ -84,11 +85,46 @@ impl Model for Pool {
 
 impl Pool {
     pub async fn token0(&self, db_pool: &sqlx::Pool<Postgres>) -> Result<Token, sqlx::Error> {
-        Token::find(&self.token0_id, db_pool).await
+        Token::find(db_pool, &self.token0_id).await
     }
 
     pub async fn token1(&self, db_pool: &sqlx::Pool<Postgres>) -> Result<Token, sqlx::Error> {
-        Token::find(&self.token1_id, db_pool).await
+        Token::find(db_pool, &self.token1_id).await
+    }
+
+    // pub fn swap(&self, amount: &BigDecimal, zero_for_one: bool) -> BigDecimal {
+    //     let fee_bp: BigDecimal = self.fee_tier.parse().unwrap();
+    //     let mil: BigDecimal = 1_000_000.into();
+    //     let price: BigDecimal = if zero_for_one {
+    //         self.token1_price.parse().unwrap()
+    //     } else {
+    //         self.token0_price.parse().unwrap()
+    //     };
+
+    //     (amount * price) * (BigDecimal::from(1) - fee_bp / &mil)
+    // }
+
+    pub fn is_token_0(&self, token_id: &str) -> bool {
+        token_id == self.token0_id
+    }
+
+    pub fn fee_price_for(&self, token_id: &str) -> BigDecimal {
+        let mil: BigDecimal = 1_000_000.into();
+        let fee_bp: BigDecimal = self.fee_tier.parse().unwrap();
+        let fee_percentage = BigDecimal::from(1) - fee_bp / &mil;
+        let base_price: BigDecimal = if token_id == self.token0_id {
+            self.token1_price.parse().unwrap()
+        } else {
+            self.token0_price.parse().unwrap()
+        };
+
+        base_price * fee_percentage
+    }
+}
+
+impl PartialEq for Pool {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id
     }
 }
 
