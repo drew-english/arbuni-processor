@@ -15,6 +15,8 @@ pub struct Pool {
     pub total_value_locked_token1: String,
     pub liquidity: String,
     pub fee_tier: String,
+    pub token0_balance: String,
+    pub token1_balance: String,
 }
 
 #[async_trait]
@@ -38,8 +40,10 @@ impl Model for Pool {
                 total_value_locked_token0,
                 total_value_locked_token1,
                 liquidity,
-                fee_tier
-            ) values ($1, $2, $3, $4, $5, $6, $7, $8, $9)",
+                fee_tier,
+                token0_balance,
+                token1_balance
+            ) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)",
             self.id,
             self.token0_id,
             self.token1_id,
@@ -48,7 +52,9 @@ impl Model for Pool {
             self.total_value_locked_token0,
             self.total_value_locked_token1,
             self.liquidity,
-            self.fee_tier
+            self.fee_tier,
+            self.token0_balance,
+            self.token1_balance,
         )
         .execute(db_pool)
         .await?;
@@ -65,8 +71,10 @@ impl Model for Pool {
                 total_value_locked_token0,
                 total_value_locked_token1,
                 liquidity,
-                fee_tier
-            ) = ($2, $3, $4, $5, $6, $7, $8, $9) WHERE id = $1",
+                fee_tier,
+                token0_balance,
+                token1_balance
+            ) = ($2, $3, $4, $5, $6, $7, $8, $9, $10, $11) WHERE id = $1",
             self.id,
             self.token0_id,
             self.token1_id,
@@ -75,7 +83,9 @@ impl Model for Pool {
             self.total_value_locked_token0,
             self.total_value_locked_token1,
             self.liquidity,
-            self.fee_tier
+            self.fee_tier,
+            self.token0_balance,
+            self.token1_balance,
         )
         .execute(db_pool)
         .await?;
@@ -140,6 +150,8 @@ impl From<&GqlPoolFields> for Pool {
             total_value_locked_token1: gpf.total_value_locked_token1.clone(),
             liquidity: gpf.liquidity.clone(),
             fee_tier: gpf.fee_tier.clone(),
+            token0_balance: "".to_string(),
+            token1_balance: "".to_string(),
         }
     }
 }

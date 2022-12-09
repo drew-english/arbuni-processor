@@ -1,3 +1,4 @@
+mod balancer;
 mod cycler;
 mod db;
 mod explorer;
@@ -26,9 +27,15 @@ async fn main() {
         explorer::find_and_update_all_pools(USDC_ADDRESS.to_string()).await;
     }
 
-    cycler::process_cycles(models::Token {
-        id: USDC_ADDRESS.to_string(),
-        symbol: "USDC".to_string(),
-    })
-    .await;
+    if env::var("FETCH_BALANCES").unwrap() == "true" {
+        balancer::find_and_update_all_balances().await;
+    }
+
+    if env::var("FIND_CYCLES").unwrap() == "true" {
+        cycler::process_cycles(models::Token {
+            id: USDC_ADDRESS.to_string(),
+            symbol: "USDC".to_string(),
+        })
+        .await;
+    }
 }

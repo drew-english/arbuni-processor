@@ -15,8 +15,30 @@ type DBPool = sqlx::Pool<sqlx::Postgres>;
 const MAX_DEPTH: usize = 3;
 
 struct Cycle {
+    root_token: String,
     pools: Vec<Pool>,
     max_price: BigDecimal,
+}
+
+impl Cycle {
+    pub fn router_path(&self) -> Vec<String> {
+        let mut cur_token = self.root_token.clone();
+        let mut path: Vec<String> = vec![];
+
+        for pool in &self.pools {
+            let next_token = if pool.is_token_0(&cur_token) {
+                pool.token1_id.clone()
+            } else {
+                pool.token0_id.clone()
+            };
+            path.push(cur_token);
+            path.push(pool.fee_tier.clone());
+            cur_token = next_token;
+        }
+
+        path.push(cur_token);
+        path
+    }
 }
 
 pub async fn process_cycles(root_token: Token) {
@@ -36,6 +58,7 @@ pub async fn process_cycles(root_token: Token) {
         )
         .await;
         cycles.push(Cycle {
+            root_token: root_token.id.clone(),
             pools: price_path,
             max_price,
         });
@@ -142,11 +165,13 @@ fn print_cycle_results(mut cycles: Vec<Cycle>) {
     let n_cycles = min(cycles.len(), 10);
 
     for cycle in &mut cycles[..n_cycles] {
-        let pool_ids: Vec<String> = cycle.pools.iter().map(|pool| pool.id.clone()).collect();
+        // let pool_ids: Vec<String> = cycle.pools.iter().map(|pool| pool.id.clone()).collect();
         info!(
             projected_profit = format!("{:.5}", cycle.max_price),
             length = cycle.pools.len(),
-            "{:?}", pool_ids,
+            "path={:?}",
+            cycle.router_path(),
+            // "pool_ids={:?}", pool_ids
         );
     }
 }

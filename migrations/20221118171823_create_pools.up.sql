@@ -7,7 +7,9 @@ CREATE TABLE pools (
   total_value_locked_token0 varchar(255) NOT NULL,
   total_value_locked_token1 varchar(255) NOT NULL,
   liquidity varchar(255) NOT NULL,
-  fee_tier varchar(20) NOT NULL
+  fee_tier varchar(20) NOT NULL,
+  token0_balance varchar(255) NOT NULL,
+  token1_balance varchar(255) NOT NULL
 );
 
 CREATE INDEX idx_pools_on_token0_id ON pools(token0_id);

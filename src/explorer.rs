@@ -6,14 +6,13 @@ use tokio::{sync::RwLock, task::JoinHandle};
 use tracing::{error, info};
 
 use crate::db::db_connection;
-use crate::models::Token;
 use crate::models::{
     pool_query::{pools_for_token, PoolsForToken},
-    Model, Pool,
+    Model, Pool, Token,
 };
 
 const UNISWAP_URL: &str = "https://api.thegraph.com/subgraphs/name/uniswap/uniswap-v3";
-const N_WORKERS: usize = 10;
+const N_WORKERS: usize = 20;
 
 pub async fn find_and_update_all_pools(root_token_address: String) {
     let processed_pools: Arc<RwLock<HashSet<String>>> = Arc::new(RwLock::new(HashSet::new()));
@@ -149,8 +148,13 @@ async fn save_pool_data(
     pool.save(db_pool).await.expect("Failed to save pool");
 }
 
-
 async fn clear_pool_data(db_pool: &sqlx::Pool<sqlx::Postgres>) {
-    sqlx::query!("DELETE FROM pools").execute(db_pool).await.expect("Failed to clear pools");
-    sqlx::query!("DELETE FROM tokens").execute(db_pool).await.expect("Failed to clear tokens");
+    sqlx::query!("DELETE FROM pools")
+        .execute(db_pool)
+        .await
+        .expect("Failed to clear pools");
+    sqlx::query!("DELETE FROM tokens")
+        .execute(db_pool)
+        .await
+        .expect("Failed to clear tokens");
 }
