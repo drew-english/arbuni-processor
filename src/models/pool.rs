@@ -4,7 +4,7 @@ use sqlx::{query, FromRow, Postgres};
 
 use super::{pool_query::pools_for_token::poolFields as GqlPoolFields, Model, Token};
 
-#[derive(Clone, FromRow, Eq, PartialOrd, Ord)]
+#[derive(Clone, FromRow, Eq)]
 pub struct Pool {
     pub id: String,
     pub token0_id: String,
@@ -129,6 +129,26 @@ impl Pool {
         };
 
         base_price * fee_percentage
+    }
+
+    pub async fn token0_balance(&self, db_pool: &sqlx::Pool<Postgres>) -> Result<BigDecimal, sqlx::Error> {
+        if self.token0_balance.is_empty() {
+            return Ok(BigDecimal::from(0));
+        }
+
+        let token0_balance: BigDecimal = self.token0_balance.parse().unwrap();
+        let token0_decimals: u32 = self.token0(db_pool).await?.decimals.parse().unwrap();
+        Ok(token0_balance / (10_i64.pow(token0_decimals)))
+    }
+
+    pub async fn token1_balance(&self, db_pool: &sqlx::Pool<Postgres>) -> Result<BigDecimal, sqlx::Error> {
+        if self.token1_balance.is_empty() {
+            return Ok(BigDecimal::from(0));
+        }
+
+        let token1_balance: BigDecimal = self.token1_balance.parse().unwrap();
+        let token1_decimals: u32 = self.token1(db_pool).await?.decimals.parse().unwrap();
+        Ok(token1_balance / (10_i64.pow(token1_decimals)))
     }
 }
 

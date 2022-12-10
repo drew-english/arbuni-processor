@@ -10,6 +10,7 @@ use tracing::Level;
 use tracing_subscriber::FmtSubscriber;
 
 const USDC_ADDRESS: &str = "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48";
+const USDC_DECIMALS: &str = "6";
 
 fn init_logger() {
     let subscriber = FmtSubscriber::builder()
@@ -35,6 +36,7 @@ async fn main() {
         cycler::process_cycles(models::Token {
             id: USDC_ADDRESS.to_string(),
             symbol: "USDC".to_string(),
+            decimals: USDC_DECIMALS.to_string(),
         })
         .await;
     }

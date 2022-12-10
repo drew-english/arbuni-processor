@@ -129,6 +129,7 @@ async fn save_pool_data(
         Token {
             id: gql_pool.token0.id.clone(),
             symbol: gql_pool.token0.id.clone(),
+            decimals: gql_pool.token0.decimals.clone(),
         }
         .save(db_pool)
         .await
@@ -139,6 +140,7 @@ async fn save_pool_data(
         Token {
             id: gql_pool.token1.id.clone(),
             symbol: gql_pool.token1.id.clone(),
+            decimals: gql_pool.token1.decimals.clone(),
         }
         .save(db_pool)
         .await

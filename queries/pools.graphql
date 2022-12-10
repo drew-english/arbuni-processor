@@ -38,4 +38,5 @@ fragment poolFields on Pool {
 fragment tokenFields on Token {
 	symbol
 	id
+  decimals
 }

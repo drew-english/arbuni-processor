@@ -12,7 +12,8 @@ use crate::{
 
 type DBPool = sqlx::Pool<sqlx::Postgres>;
 
-const MAX_DEPTH: usize = 3;
+const MAX_DEPTH: usize = 20;
+const MIN_ROOT_AMOUNT: u32 = 100000;
 
 struct Cycle {
     root_token: String,
@@ -121,11 +122,29 @@ async fn find_cycle(
 
     let (future_max_price, mut future_pool_path) = new_prices
         .iter()
-        .max()
+        .max_by_key(|v| &v.0)
         .unwrap_or(&(BigDecimal::from(0), vec![]))
         .clone();
-    let cur_max_price = &future_max_price * cur_pool.fee_price_for(&cur_token_id);
+    
     let mut price_pool_path = vec![];
+    let token_balance_result = if cur_pool.is_token_0(&cur_token_id) {
+        cur_pool.token0_balance(db_pool).await
+    } else {
+        cur_pool.token1_balance(db_pool).await
+    };
+    let token_balance = match token_balance_result {
+        Ok(balance) => balance,
+        Err(err) => {
+            error!(pool_id = cur_pool.id, error = err.to_string(), "Error fetching token balance");
+            BigDecimal::from(0)
+        }
+    };
+    
+    let cur_max_price = if &future_max_price * BigDecimal::from(MIN_ROOT_AMOUNT) >= token_balance {
+        BigDecimal::from(0)
+    } else {
+        &future_max_price * cur_pool.fee_price_for(&cur_token_id)
+    };
 
     if cur_max_price > BigDecimal::from(0) {
         price_pool_path.push(cur_pool.clone());
@@ -165,13 +184,11 @@ fn print_cycle_results(mut cycles: Vec<Cycle>) {
     let n_cycles = min(cycles.len(), 10);
 
     for cycle in &mut cycles[..n_cycles] {
-        // let pool_ids: Vec<String> = cycle.pools.iter().map(|pool| pool.id.clone()).collect();
+        let pool_ids: Vec<String> = cycle.pools.iter().map(|pool| pool.id.clone()).collect();
         info!(
             projected_profit = format!("{:.5}", cycle.max_price),
             length = cycle.pools.len(),
-            "path={:?}",
-            cycle.router_path(),
-            // "pool_ids={:?}", pool_ids
+            "path={:?} pool_ids={:?}", cycle.router_path(), pool_ids
         );
     }
 }
